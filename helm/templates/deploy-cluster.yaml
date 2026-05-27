@@ -1,0 +1,132 @@
+apiVersion: hive.openshift.io/v1
+kind: ClusterDeployment
+metadata:
+  name: {{ .Values.cluster }}
+  namespace: {{ .Values.cluster }}
+  labels:
+    cluster.open-cluster-management.io/clusterset: default
+    hive.openshift.io/cluster-platform: agent-baremetal
+spec:
+  baseDomain: {{ .Values.basedomain }}
+  clusterInstallRef:
+    group: extensions.hive.openshift.io
+    kind: AgentClusterInstall
+    name: {{ .Values.cluster }}
+    version: v1beta1
+  clusterName: {{ .Values.cluster }}
+  controlPlaneConfig:
+    servingCertificates: {}
+  platform:
+    agentBareMetal:
+      agentSelector: {}
+  pullSecretRef:
+    name: pullsecret-cluster-{{ .Values.cluster }}
+
+---
+apiVersion: extensions.hive.openshift.io/v1beta1
+kind: AgentClusterInstall
+metadata:
+  {{- if eq .Values.fips "enable" }}
+  annotations:
+    agent-install.openshift.io/install-config-overrides: '{"fips": true}'
+  {{- end }}
+  name: {{ .Values.cluster }}
+  namespace: {{ .Values.cluster }}
+spec:
+  clusterDeploymentRef:
+    name: {{ .Values.cluster }}
+  {{- if eq .Values.diskEncryption "enable" }}
+  diskEncryption:
+    enableOn: all
+    mode: tpmv2
+  {{- end }}
+  manifestsConfigMapRefs:
+    - name: custom-lacp-chrony-machineconfigs
+  imageSetRef:
+    name: {{ .Values.imagesetref }}
+  networking:
+    clusterNetwork:
+      - cidr: 10.128.0.0/14
+        hostPrefix: 23
+    networkType: OVNKubernetes
+    serviceNetwork:
+      - 172.30.0.0/16
+    machineNetwork:
+      - cidr: '{{ .Values.subnet }}'
+    {{- if eq (int .Values.mastercount) 1 }}
+    userManagedNetworking: true
+    {{- else }}
+    userManagedNetworking: false
+    apiVIP: {{ .Values.apiip }}
+    ingressVIP: {{ .Values.ingressip }}
+    {{- end }}
+  provisionRequirements:
+    controlPlaneAgents: {{ .Values.mastercount }}
+    workerAgents: {{ .Values.workercount }}
+  sshPublicKey: '{{ .Values.sshkey }}'
+
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  namespace: {{ $.Values.cluster }}
+  name: pullsecret-cluster-{{ .Values.cluster }}-eso
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: cluster-vault
+  target:
+    template:
+      type: kubernetes.io/dockerconfigjson
+      engineVersion: v2
+      data:
+        .dockerconfigjson: '{{ `{{ .dockerconfigjson }}` }}'
+    name: pullsecret-cluster-{{ .Values.cluster }}
+    creationPolicy: Owner
+data:
+  - secretKey: dockerconfigjson
+    remoteRef:
+      # key: fred-quay-credentials
+      key: "provisioning/pull-secret-pulp"
+      property: dockerconfigjson
+
+---
+apiVersion: cluster.open-cluster-management.io/v1
+kind: ManagedCluster
+metadata:
+  name: {{ .Values.cluster }}
+  labels:
+    cloud: BareMetal
+    cluster-name: {{ .Values.cluster }}
+    cluster.open-cluster-management.io/clusterset: default
+    vendor: OpenShift
+  {{- range $key, $value := .Values.managedLabels }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+spec:
+  hubAcceptsClient: true
+  leaseDurationSeconds: 60
+  taints:
+    - effect: NoSelect
+      key: cluster.open-cluster-management.io/unreachable
+---
+apiVersion: agent.open-cluster-management.io/v1
+kind: KlusterletAddonConfig
+metadata:
+  name: {{ .Values.cluster }}
+  namespace: {{ .Values.cluster }}
+spec:
+  applicationManager:
+    enabled: true
+  certPolicyController:
+    enabled: true
+  clusterLabels:
+    cloud: BareMetal
+    vendor: OpenShift
+  clusterName: {{ .Values.cluster }}
+  clusterNamespace: {{ .Values.cluster }}
+  policyController:
+    enabled: true
+  searchCollector:
+    enabled: true

@@ -1,0 +1,36 @@
+{{ $cluster := .Values.cluster }}
+{{ range .Values.nodes }}
+apiVersion: metal3.io/v1alpha1
+kind: BareMetalHost
+metadata:
+  name: {{ .hostname }}
+  namespace: {{ $cluster }}
+  annotations:
+    inspect.metal3.io: 'disabled'
+    bmac.agent-install.openshift.io/role: {{ .role }}
+    bmac.agent-install.openshift.io/hostname: {{ .hostname }}
+  labels:
+    infraenvs.agent-install.openshift.io: {{ $cluster }}
+spec:
+  bootMode: {{ $.Values.bootMode }}
+  bootMACAddress: {{ .mac1 }}
+  architecture: x86_64
+  rootDeviceHints:
+    {{- if eq .vendor "Dell" }}
+    model: "Dell BOSS-N1"
+    {{- else if eq .vendor "HPE" }}
+    model: "HPE NS204i-u Gen11 Boot Controller"
+    {{- end }}
+  online: true
+  bmc:
+    {{- if eq .vendor "Dell" }}
+    address: 'idrac-virtualmedia://{{ .ilo }}/redfish/v1/Systems/System.Embedded.1'
+    {{- else if eq .vendor "HPE" }}
+    address: 'redfish-virtualmedia://{{ .ilo }}/redfish/v1/Systems/1'
+    {{- else }}
+    address: 'vendor field not found'
+    {{- end }}
+    credentialsName: "{{ .short }}-creds"
+    disableCertificateVerification: true
+---
+{{ end }}

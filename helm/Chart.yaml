@@ -1,0 +1,5 @@
+apiVersion: v2
+name: mce-ocp-cluster-install
+description: A Helm chart for generating ACM/MCE based cluster deployment manifests.
+type: application
+version: 0.2.0

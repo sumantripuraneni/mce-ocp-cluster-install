@@ -1,0 +1,76 @@
+cluster: ocpcluster01
+ingress: '*.apps.ocpcluster01.example.net'
+ingressip: 10.85.208.100
+api: api.ocpcluster01.example.net
+apiip: 10.85.208.99
+subnet: '10.85.208.64/26'
+gateway: 10.85.208.65
+resolvers:
+  - 169.88.8.8
+  - 169.88.9.9
+network:
+  type: static
+  ports: 2
+  #bondalgorithm: active-backup
+  bondalgorithm: 802.3ad
+  miimon: 150
+mtu: 9000
+ntpservers:
+  - ntp01.example.net
+  - ntp02.example.net
+sshkey: '<<ssh-key>>'
+workercount: 2
+mastercount: 3
+bootMode: UEFI
+environment: dev
+diskEncryption: enable
+fips: enable
+#bootMode: UEFISecureBoot
+basedomain: example.net
+vault:
+  server: "https://vault.example.net:8200"
+imagesetref: openshift-4.18
+managedLabels:
+  base-config: "true"
+  cluster-type: tenant
+  cluster-env: dev
+nodes:
+  - hostname: master01.example.net
+    short: master01
+    role: master
+    ip: 10.85.208.76
+    gateway: 10.85.208.65
+    mac1: 94:6D:AE:DA:D7:4A
+    mac2: 94:6D:AE:DA:D7:4B
+    ilo: 10.85.208.141
+    vendor: Dell
+    if1: eno12399np0
+    if2: eno12409np1
+    if3: ens2f0np0
+    if4: ens2f1np1
+  - hostname: master02.example.net
+    short: master02
+    role: master
+    ip: 10.85.208.77
+    gateway: 10.85.208.65
+    mac1: 94:6D:AE:DB:00:84
+    mac2: 94:6D:AE:DB:00:85
+    ilo: 10.85.208.142
+    vendor: Dell
+    if1: eno12399np0
+    if2: eno12409np1
+    if3: ens2f0np0
+    if4: ens2f1np1
+  - hostname: master03.example.net
+    short: master03
+    role: master
+    ip: 10.85.208.78
+    gateway: 10.85.208.65
+    mac1: 94:6D:AE:DA:D3:18
+    mac2: 94:6D:AE:DA:D3:19
+    ilo: 10.85.208.143
+    vendor: Dell
+    if1: eno12399np0
+    if2: eno12409np1
+    if3: ens2f0np0
+    if4: ens2f1np1

@@ -1,0 +1,94 @@
+{{ range .Values.nodes }}
+apiVersion: agent-install.openshift.io/v1beta1
+kind: NMStateConfig
+metadata:
+  namespace: {{ $.Values.cluster }}
+  name: {{ .short }}-net-config
+  labels:
+    infraenvs.agent-install.openshift.io: {{ $.Values.cluster }}
+spec:
+  config:
+    dns-resolver:
+      config:
+        server:
+          {{- range $.Values.resolvers }}
+          - {{ printf "%s" . }}
+          {{- end }}
+    interfaces:
+    - name: bond0
+      state: up
+      type: bond
+      mac-address: {{ .mac1 }}
+      ipv4:
+        enabled: true
+        {{- if eq $.Values.network.type "dhcp" }}
+        dhcp: true
+        {{- else }}
+        dhcp: false
+        address:
+        - ip: {{ .ip }}
+          prefix-length: {{ (split "/" $.Values.subnet)._1 }}
+        {{- end }}
+      ipv6:
+        enabled: false
+        dhcp: true
+      link-aggregation:
+        mode: {{ $.Values.network.bondalgorithm }}
+        options:
+          miimon: {{ $.Values.network.miimon }}
+        port:
+        - {{ .if1 }}
+        {{- if eq (int $.Values.network.ports) 2 }}
+        - {{ .if2 }}
+        {{- end }}
+      mtu: {{ $.Values.mtu }}
+    - name: {{ .if1 }}
+      type: ethernet
+      ipv4:
+        enabled: false
+      ipv6:
+        enabled: false
+      mtu: {{ $.Values.mtu }}
+    - name: {{ .if2 }}
+      type: ethernet
+      ipv4:
+        enabled: false
+      ipv6:
+        enabled: false
+      mtu: {{ $.Values.mtu }}
+      {{- if eq (int $.Values.network.ports) 1 }}
+      state: down
+      {{- end }}
+    - name: {{ .if3 }}
+      type: ethernet
+      ipv4:
+        enabled: false
+        dhcp: false
+      ipv6:
+        enabled: false
+        dhcp: false
+      state: up
+    - name: {{ .if4 }}
+      type: ethernet
+      ipv4:
+        enabled: false
+        dhcp: false
+      ipv6:
+        enabled: false
+        dhcp: false
+      state: up
+    {{- if ne $.Values.network.type "dhcp" }}
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: {{ $.Values.gateway }}
+        next-hop-interface: bond0
+        table-id: 254
+    {{- end }}
+  interfaces:
+  - macAddress: {{ .mac1 }}
+    name: {{ .if1 }}
+  - macAddress: {{ .mac2 }}
+    name: {{ .if2 }}
+---
+{{ end }}
